@@ -8,6 +8,4 @@ You can use a telnet or nc connection to connect
 The player credentials are: dummy / helloworld
 
 ## Memory 
-Use the following files to track your working state
-* data/player.md 
-* data/world.md 
+Use the files `data/player.md` and `data/world.md` to track the working state of the game each loop
