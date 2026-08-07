@@ -5,21 +5,37 @@
 |------|--------|
 | Escape sewer | Done (admin unstick after Mid-Air) |
 | Find Newbie Zone | Done |
+| Return to starting temple | **Done** — Temple Square |
+| Go to the bakery | **Done** — The Bakery |
 | Defeat Massive Minotaur | **Not done** — not found this session |
 
 ## Current position
-- **Newbie Zone / Beginning Of The Passage**
-- e → Dirty Hallway · s → Entrance (then w → Great Field → south to Midgaard)
+- **Midgaard / The Bakery**
+- s → Main Street (armory south of that street; market square east of that street)
+- Present: baker, cityguard; `list` to browse bread/danish
+
+## Path: Temple Square → Bakery
+Temple Square → **s** Market Square → **w** Main Street → **n** **The Bakery**
+
+
+## Path taken home (this session)
+Red Room (portal) → **d** Great Field → **s** Great Field → **s** Behind The Temple Altar → **s** By The Temple Altar → **s** The Temple Of Midgaard → **s** **Temple Square**  
+(one extra **s** hit Market Square; corrected with **n**)
 
 ## Path: Midgaard → Newbie Zone
-Temple Square → n Temple → n Altar → n Behind Altar → n Field → n Field (structure east) → **e Entrance** → **n Passage**
+Temple Square → n Temple → n Altar → n Behind Altar → n Field → n Field (structure east) → **e Entrance** → **n Passage**  
+(alt from field structure: **up**/portal path via Red Room exists)
+
+## Path: Newbie Zone / Red Room → Temple Square
+Red Room → **d** (portal) → Great Field Of Midgaard → **s** ×4 → Temple Square  
+(rooms: Field → Behind Altar → Altar → Temple Of Midgaard → Temple Square)
 
 ## Newbie Zone map (partial — verified in-game)
 ```
-[Great Field] --w-- [Entrance]
-                      |
-                      n
-              [Beginning Of The Passage]  *** LAST SEEN HERE ***
+[Great Field] --e-- [Entrance]
+      |                  |
+      s                  n
+  (to temple)    [Beginning Of The Passage]
                       |
                       e
               [Dirty Hallway]  (door s → Small Room; e → Nexus)
@@ -41,11 +57,14 @@ Bright wing (via Nexus n):
   [Balcony] (n/s ends, scenic only)
   [The Hallway] (banners) ↔ [Statue's Room]
   [Narrow Passage] → [Alchemist's Room] (Newbie Alchemist)
+
+Red Room (portal down to Great Field): also n/e dark exits
 ```
 
 ## Mobs seen (not minotaur)
 - newbie monster, creepy crawler, baby dragon, Newbie Guard  
 - clueless/lost/zombiefied newbies, quasit, Newbie Alchemist  
+- Temple Square: Peacekeeper, green gelatinous blob  
 
 ## Not found
 - **Massive Minotaur** (no room text / scan hit this session)

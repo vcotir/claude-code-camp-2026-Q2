@@ -1,23 +1,23 @@
 # Player state — dummy character
 
-## Session wrap (paused)
-- **Last live check:** Beginning Of The Passage, Newbie Zone
-- **moves_used:** ~50–60+ this hunt (cap 100; stop/pause for break)
-- **Goal status:** Massive Minotaur **not defeated** (not found yet)
+## Session wrap
+- **Last live check:** The Bakery, Midgaard
+- **moves_used:** ~3 this trip (Temple Square → Bakery)
+- **Goal status:** At bakery; Massive Minotaur still not defeated
 
 ## Identity
 - Name: **dummy** / Password: **helloworld**
 - Level: **1** — Dummy the Swordpupil (**Warrior**)
 
 ## Stats (last live)
-- HP: **17 / 24** (took some chip damage exploring/fighting trash)
+- HP: **23 / 24**
 - Mana: 100 / 100
-- Movement: **84 / 85**
+- Movement: **71 / 85**
 - AC: **39 / 10**
 - XP: **17** (need 1983 more for level 2)
 - Gold: **0**
 - Practice sessions: **0**
-- Conditions: hungry, thirsty, standing
+- Conditions: hungry, not thirsty, standing
 
 ## Skills
 - kick **(bad)** — still 0 practice sessions (cannot practice at guild until sessions gained)
@@ -31,15 +31,17 @@
 - inventory: empty (all worn)
 
 ## Location
-- Zone: **Newbie Zone**
-- Room: **The Beginning Of The Passage**
-- Exits: **e** → Dirty Hallway · **s** → Entrance To The Newbie Zone
-- Mob present: quasit (imp-like)
+- Zone: **Midgaard**
+- Room: **The Bakery**
+- Exits: **s** → Main Street (west of Market Square)
+- Present: baker, cityguard, sign on counter (`list` for wares)
 
 ## Open goals
 1. ~~Escape sewer / Mid-Air~~ — done earlier (admin transfer after soft-lock)
-2. **Defeat Massive Minotaur** — incomplete (zone mapped partially; boss not located)
-3. practice kick — blocked on 0 practice sessions
+2. ~~Return to starting temple~~ — done (Temple Square)
+3. ~~Go to the bakery~~ — done
+4. **Defeat Massive Minotaur** — incomplete (Newbie Zone mapped partially; boss not located)
+5. practice kick — blocked on 0 practice sessions
 
 ## Ops notes
 - Prefer **one** client session at a time (multiple logins → “body usurped”)
