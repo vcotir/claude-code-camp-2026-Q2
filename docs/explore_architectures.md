@@ -44,3 +44,11 @@ Agent skills work quite well, need much more complex state, world, and player ma
 It would be good to define a Player Persona - which details how a player would like to play (e.g. Risk mode, exploration mode, etc)
 
 ## Filesystem Subagent driven by coding harness 
+
+### Technical Observations 
+Subagent was created but Grok doesn't use it by default. Just need to tell Grok to use the subagents. 
+
+Subagents are launched by a helper file [run_mud_agent.py](../week0_explore/explore_architecture/03b_subagent_sdk/scripts/run_mud_agent.py) which uses Claude [AgentDefintions](https://code.claude.com/docs/en/agent-sdk/subagents#agentdefinition-configuration) - this ensures that subagent config and definition is explicit.
+
+# N8n
+N8n can add latency and might not be ideal with subagents running alongside and interacting with each other. While this is the case - it is useful for having clearly defined workflows that may optionally leverage LLMs
