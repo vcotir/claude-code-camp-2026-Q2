@@ -1,0 +1,11 @@
+tasks:
+  player:
+    provider: grok        # provider name (string)
+    model: grok-4.6
+    prompt_override:
+      system: true
+mud:
+  host: localhost
+  port: 4000
+  username: dummy
+  password: helloworld
