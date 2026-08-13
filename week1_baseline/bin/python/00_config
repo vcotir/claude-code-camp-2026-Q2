@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+STEP="$ROOT/week1_baseline/python/00_config"
+VENV_PY="$ROOT/.venv/bin/python"
+
+if [ ! -x "$VENV_PY" ]; then
+  echo "error: repo-root .venv not found." >&2
+  echo "Create it first — see week1_baseline/python/00_config/README.md" >&2
+  exit 1
+fi
+
+cd "$STEP"
+exec "$VENV_PY" examples/example.py

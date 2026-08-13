@@ -1,0 +1,548 @@
+# Python Port Plan — Step 00 · Configuration
+
+Port the Ruby `week1_baseline/ruby/00_config` step to Python. This is the first
+Python baseline step: config directory resolution, settings loading, task helpers,
+and a runnable smoke-test example. Later steps (`01`–`12`) build on this shape.
+
+**Status:** all questions answered (including Q5 launcher + Q13 venv) — ready to implement.
+
+---
+
+## Goal
+
+Reproduce step 0 behaviour in Python:
+
+1. Resolve a `.boukensha/` config directory (`BOUKENSHA_DIR` → `~/.boukensha`).
+2. Load `.env` from that directory (secrets / API keys).
+3. Load `settings.yaml` and expose nested lookups.
+4. Provide task helpers for the `player` task: provider, model, prompt override,
+   system prompt resolution.
+5. Ship a default system prompt and a runnable example that prints the same
+   smoke-test surface as the Ruby example.
+
+Behaviour and schema should match the Ruby reference. Intentional deltas
+are only those recorded in the Decision log (none for behaviour — Q6 is parity).
+
+---
+
+## Reference sources (what to port)
+
+Use these Ruby paths as the **source of truth**. Port behaviour, not Ruby idioms
+line-for-line.
+
+### Primary (implement against these)
+
+| Role | Reference path |
+|------|----------------|
+| Step intent + schema + expected example output | `week1_baseline/ruby/00_config/README.md` |
+| Top-level package entry | `week1_baseline/ruby/00_config/lib/boukensha.rb` |
+| Config class | `week1_baseline/ruby/00_config/lib/boukensha/config.rb` |
+| Task base (stateless class methods) | `week1_baseline/ruby/00_config/lib/boukensha/tasks/base.rb` |
+| Player task | `week1_baseline/ruby/00_config/lib/boukensha/tasks/player.rb` |
+| Default system prompt | `week1_baseline/ruby/00_config/prompts/system.md` |
+| Smoke-test example | `week1_baseline/ruby/00_config/examples/example.rb` |
+| Dependencies | `week1_baseline/ruby/00_config/Gemfile` (Ruby: `dotenv` only; YAML is Ruby stdlib) |
+| Launcher script | `week1_baseline/bin/00_config` (move to `bin/ruby/00_config` — Q5) |
+| Week-level context for this step | `week1_baseline/ruby/ITERATIONS.md` (section “0 Configuration”) |
+
+### Runtime config the example expects (repo-local)
+
+Not code to port, but the example must read the same layout:
+
+| Path | Purpose |
+|------|---------|
+| `.boukensha/settings.yaml` | Non-secret settings (`tasks`, `mud`, …) |
+| `.boukensha/.env` | Secrets (e.g. `ANTHROPIC_API_KEY`) |
+| `.boukensha/prompts/<task>/system.md` | Optional per-task system prompt override |
+
+### Do **not** port yet
+
+| Path / area | Why |
+|-------------|-----|
+| `week1_baseline/ruby/01_*` … `12_*` | Later steps; port after 00 works |
+| `week1_baseline/ruby/log_viz/` | Separate app; not part of 00 |
+| `week0_explore/**` | Exploration / parsers / MUD infra — not Boukensha baseline |
+| Gem packaging (`*.gemspec`, `boukensha_loader`) | Introduced at step 09; Python packaging decision is open |
+
+---
+
+## Behaviour to preserve (acceptance criteria)
+
+### Config directory resolution
+
+Order (from `config.rb` + README):
+
+1. `BOUKENSHA_DIR` environment variable (absolute or expandable path).
+2. Else `~/.boukensha`.
+
+Expand to an absolute path. Do not require the directory to exist at construct
+time if Ruby does not (empty settings when `settings.yaml` is missing).
+
+### Files loaded from config dir
+
+```
+.boukensha/
+  .env                 # load if present (dotenv)
+  settings.yaml        # load if present; else {}
+  prompts/
+    <task>/
+      system.md        # user override when prompt_override.system is true
+```
+
+### `Config` public surface (mirror Ruby)
+
+| Ruby API | Python equivalent (Q1 A — same conceptual names) |
+|----------|--------------------------------------------------|
+| `Config#dir` | config directory path |
+| `Config#settings` | full settings hash/dict |
+| `Config#tasks` / `Config#tasks(name)` | full `tasks` map or one task’s settings |
+| `Config#user_prompts_dir` | `<dir>/prompts` |
+| `Config#mud_host` | default `"localhost"` |
+| `Config#mud_port` | default `4000` |
+| `Config#mud_username` / `#mud_password` | from settings; may be nil |
+| `Config#dig(*keys)` | nested lookup; **string keys only** (Q3) |
+| `Config::DEFAULT_DIR` | `~/.boukensha` |
+| `Config::PROMPTS_DIR` | path to shipped `prompts/` next to package code |
+
+### Tasks (stateless — no instances)
+
+From `tasks/base.rb` + `tasks/player.rb`:
+
+| Method | Behaviour |
+|--------|-----------|
+| `task_name` | `"player"` on Player; abstract on Base |
+| `provider(settings)` | required; raise if missing |
+| `model(settings)` | required; raise if missing |
+| `prompt_override?(settings, prompt=:system)` | true only when `prompt_override.<name> == true` |
+| `prompt` / `system_prompt` | override file if flag + file exist; else default `prompts/system.md` (strip trailing/leading whitespace like Ruby `.strip`) |
+
+Prompt resolution order:
+
+1. If override enabled and `user_prompts_dir/<task_name>/<prompt>.md` exists → that text.
+2. Else `default_prompts_dir/<prompt>.md` (today: flat `system.md`, not yet `prompts/<task>/system.md` — known Ruby debt; see README “Considerations”).
+
+### Settings schema (current)
+
+```yaml
+tasks:
+  player:
+    provider: anthropic
+    model: claude-haiku-4-5
+    prompt_override:
+      system: true
+mud:
+  host: localhost
+  port: 4000
+  username: dummy
+  password: helloworld
+```
+
+Secrets stay in `.env` (e.g. `ANTHROPIC_API_KEY`), not in yaml.
+
+### Example smoke output
+
+Match Ruby example labels and fields (values depend on local `.boukensha/`):
+
+```
+=== Boukensha Step 0: Configuration ===
+
+Config dir:     ...
+Tasks:          player
+
+-- player task --
+Provider:       ...
+Model:          ...
+Prompt override?...
+System prompt:  <first 60 chars>...
+
+MUD host:       host:port
+MUD user:       ...
+
+API key set?    true|false
+
+#<...Config dir=... tasks=player>   # or Python-equivalent __repr__/str
+```
+
+---
+
+## Proposed Python layout (Q2 A)
+
+Mirror the step-folder pedagogy used for Ruby:
+
+```
+.venv/                                # repo-root venv (Q13) — not inside the step
+week1_baseline/python/00_config/
+  README.md                 # venv setup at top, then port of step README
+  pyproject.toml            # package metadata + python-dotenv + PyYAML
+  boukensha/
+    __init__.py             # re-exports / package root (from boukensha.rb)
+    config.py               # from config.rb
+    tasks/
+      __init__.py
+      base.py               # from tasks/base.rb
+      player.py             # from tasks/player.rb
+  prompts/
+    system.md               # copy of Ruby default prompt
+  examples/
+    example.py              # from examples/example.rb
+week1_baseline/bin/ruby/00_config     # relocated Ruby launcher (fix cd: one extra ..)
+week1_baseline/bin/python/00_config   # new Python launcher (uses repo-root .venv)
+```
+
+Class mapping (Q1 A):
+
+| Ruby | Python |
+|------|-------------------|
+| `Boukensha::Config` | `boukensha.config.Config` |
+| `Boukensha::Tasks::Base` | `boukensha.tasks.base.Base` (or ABC with classmethods) |
+| `Boukensha::Tasks::Player` | `boukensha.tasks.player.Player` |
+
+---
+
+## File-by-file port checklist
+
+Implement in this order:
+
+1. **Package skeleton** — `boukensha/__init__.py`, empty modules as needed.
+2. **`prompts/system.md`** — copy text from Ruby reference (same content).
+3. **`boukensha/config.py`** — port `Config` from `lib/boukensha/config.rb`.
+4. **`boukensha/tasks/base.py`** — port task helpers from `tasks/base.rb`.
+5. **`boukensha/tasks/player.py`** — thin subclass with `task_name = "player"`.
+6. **`examples/example.py`** — port smoke test; set `BOUKENSHA_DIR` to repo
+   `.boukensha` the same way Ruby does (`ENV["BOUKENSHA_DIR"] ||= ...`).
+7. **Deps + README + launcher** — `pyproject.toml`; repo-root `.venv` setup
+   at the top of the Python README (Q13); `bin/ruby/00_config` + `bin/python/00_config` (Q5).
+8. **Manual verify** — run example against repo `.boukensha/`; compare output
+   shape to `./week1_baseline/bin/ruby/00_config`.
+
+### Port notes (Ruby → Python)
+
+| Concern | Ruby | Python suggestion |
+|---------|------|-------------------|
+| YAML | `YAML.safe_load` (Ruby stdlib / psych) | **PyYAML** `yaml.safe_load` — *not* Python stdlib |
+| `.env` | `dotenv` gem | **python-dotenv** — *not* Python stdlib |
+| Path expand | `Pathname#expand_path` | `pathlib.Path.expanduser().resolve()` |
+| Home dir | `Dir.home` | `Path.home()` |
+| Nested dig | string **or** symbol keys | YAML loads strings only in Python — document that keys are strings; optional helper that normalizes keys |
+| Stateless tasks | class methods | `@classmethod` or module-level functions on a class (prefer classmethods to match Ruby structure for later steps) |
+| Required fields | `ArgumentError` | `ValueError` or custom error later |
+| Abstract `task_name` | `NotImplementedError` | same, or `abc.ABC` |
+| Default prompts path | `File.expand_path("../../prompts", __dir__)` | path relative to package / install; for step 00, path next to package root is fine |
+| Example dir override | `File.expand_path("../../../../.boukensha", __dir__)` | same depth once layout is `week1_baseline/python/00_config/examples/` |
+
+Known Ruby limitations (README “Considerations”) — **do not “fix” unless you decide to**:
+
+- Default prompt is flat `prompts/system.md`, not `prompts/<task>/system.md`.
+- Only `settings.yaml` is loaded, not `.yml`.
+
+If you want Python to improve either of these in step 00, answer Q6.
+
+---
+
+## Dependencies
+
+**stdlib** = modules that ship with the language (`pathlib`, `os`, `json`, …).
+You `import` them; they do not go in `pyproject.toml`.
+
+**Third-party** = install from PyPI (or RubyGems). Anything not bundled.
+
+Ruby step 00 only lists `dotenv` because **YAML is in Ruby’s stdlib**. Python
+does **not** ship YAML *or* `.env` loading, so a parity port needs **two**
+third-party packages, not one:
+
+| Need | Ruby | Python |
+|------|------|--------|
+| `.env` load (`ANTHROPIC_API_KEY`, …) | `dotenv` gem (third-party) | `python-dotenv` (third-party) |
+| `settings.yaml` parse | `yaml` / psych (**stdlib**) | `PyYAML` (**third-party**) |
+| Paths, files, env vars | stdlib | stdlib (`pathlib`, `os`) |
+| JSON / TOML | — | stdlib (`json`, `tomllib`) — **not used**; settings stay YAML to share `.boukensha/` with Ruby |
+
+`pyproject.toml` (not `requirements.txt`) is the project file: package name,
+`requires-python`, and these deps. `requirements.txt` would only list packages;
+it would not install `boukensha` itself as an importable package.
+
+```toml
+[project]
+name = "boukensha"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = [
+  "python-dotenv",
+  "PyYAML",
+]
+```
+
+Install into the **repo-root** `.venv` (Q13), then run via the bin launcher
+or `python examples/example.py` with that env active:
+
+```bash
+# from repo root (documented at the top of the Python step README)
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -e week1_baseline/python/00_config
+```
+
+Why not stdlib-only?
+
+- Hand-parsing `.env` is possible but skips the camp’s documented dotenv format.
+- Switching settings to JSON/TOML would break sharing `.boukensha/settings.yaml`
+  with the Ruby example.
+
+Prefer this tiny extra surface over inventing parsers. Still “stdlib first”:
+no HTTP client, no pydantic, no agent SDK.
+
+---
+
+## Out of scope for this step
+
+- Agent loop, tools, backends, logger, REPL, TUI, MCP.
+- MudManager / MUD TCP (only config *fields* for mud host/port/user/pass).
+- Shared config package used by all steps (each Ruby step is a snapshot folder;
+  Python keeps the same snapshot pedagogy — Q2 A).
+- Automated test suite (Q7 A — example only).
+- Step 09-style global install / entrypoint packaging.
+- Per-step virtualenvs (one repo-root `.venv` is shared — Q13).
+
+---
+
+## Implementation phases (questions answered — proceed)
+
+### Phase A — Scaffold
+
+- Create `week1_baseline/python/00_config/` tree.
+- Add `pyproject.toml` and package layout.
+- Copy `prompts/system.md`.
+
+### Phase B — Core port
+
+- Implement `Config` + tasks to match reference behaviour.
+- Wire package imports.
+
+### Phase C — Example + runner
+
+- Port `examples/example.py`.
+- Relocate Ruby launcher to `week1_baseline/bin/ruby/00_config` (fix `cd` by
+  one extra `..`).
+- Add `week1_baseline/bin/python/00_config` using repo-root `.venv/bin/python`.
+- Run against repo `.boukensha/`; confirm fields match Ruby smoke test.
+
+### Phase D — Document
+
+- Python step README: **venv setup at the top** (create at repo root, install
+  the package, assume that env is present for later steps), then design notes,
+  schema, run command, expected output.
+
+---
+
+## Questions (answered)
+
+All decided — see Decision log. Chosen option is **bold**.
+
+### Q1 — Naming / package
+
+Should the Python package stay named `boukensha` with the same class names
+(`Config`, `Tasks.Player`), or rename for Python style?
+
+- **A. Keep `boukensha` + same conceptual names** (easiest cross-language reading of plans/videos)
+- B. Rename package and/or modules (specify names)
+
+### Q2 — Tree layout
+
+Where should the Python port live?
+
+- **A. `week1_baseline/python/00_config/`** (mirror `ruby/00_config/`, snapshot per step)
+- B. Single evolving package under `week1_baseline/python/boukensha/` (no per-step copies)
+- C. Other (specify)
+
+### Q3 — Settings key access
+
+Ruby accepts string or symbol keys in `dig` / task fetch. Python YAML is strings.
+
+- **A. Strings only** (document it; simplest)
+- B. Normalize keys to strings on load so callers can use either
+- C. Use typed settings (dataclasses/pydantic) instead of raw dicts — only for 00 if you want the schema locked early
+
+### Q4 — Packaging / deps for step 00
+
+- **A. `pyproject.toml` + `python-dotenv` + `PyYAML`**, install into the repo-root venv (Q13) with `pip install -e week1_baseline/python/00_config`
+- B. `requirements.txt` only + `PYTHONPATH=...`
+- C. Zero third-party: hand-roll `.env` and drop YAML (would break shared settings)
+
+### Q5 — How to run the smoke test
+
+- A. `week1_baseline/bin/00_config` stays Ruby; add `week1_baseline/bin/00_config_py`
+- B. Replace / dual-mode the existing bin script
+- C. Document `python examples/example.py` only; no bin wrapper yet
+- **D. Split `week1_baseline/bin/` by language** — `bin/ruby/00_config` and `bin/python/00_config`
+
+User created `week1_baseline/bin/ruby/` and `week1_baseline/bin/python/`. Move the
+existing Ruby launcher into `bin/ruby/` and fix its `cd` (one extra `..`, so it
+still reaches `week1_baseline/ruby/00_config`). Add a new `bin/python/00_config`
+that runs the Python example via the repo-root `.venv` (Q13). Later steps follow
+the same `bin/<lang>/<step>` convention.
+
+### Q6 — Intentional improvements in Python 00?
+
+Ruby README notes two rough edges. For the Python port of **this** step:
+
+- **A. Behaviour-parity only** (same flat default prompt path; only `settings.yaml`)
+- B. Accept `settings.yaml` **or** `settings.yml`
+- C. Scope default prompts as `prompts/<task>/system.md` (and keep flat as fallback)
+- D. B + C
+
+### Q7 — Tests
+
+- **A. No automated tests in 00** (example is the smoke test, like Ruby)
+- B. Add `pytest` unit tests for config resolution, dig, prompt override paths (fixture temp dirs)
+
+No test suites at all in this step — only the example file, same as Ruby.
+
+### Q8 — Shared `.boukensha/` with Ruby
+
+Should Python 00 read the **same** repo `.boukensha/` as Ruby (same yaml/env)?
+
+- **A. Yes — one config dir for both languages**
+- B. Separate example config under the Python tree
+- C. Support both via `BOUKENSHA_DIR` only (no default repo path in example)
+
+### Q9 — Error types
+
+When `provider` / `model` missing:
+
+- **A. Raise `ValueError` with a message like Ruby’s** (`tasks.player.provider is required…`)
+- B. Introduce `boukensha.errors` early (even though Ruby adds `Errors` at step 02/05)
+- C. Other
+
+### Q10 — Scope of this plan file series
+
+Is `docs/plans/python_port/00_config` only for step 00, with later files
+`01_struct_skeleton`, …, or do you want one mega-plan later?
+
+- **A. One plan file per step under `docs/plans/python_port/`** (matches this path)
+- B. Single rolling plan document
+
+### Q11 — Python version target
+
+- **A. 3.11+**
+- B. 3.12+ only
+- C. Other (specify)
+
+### Q12 — Type hints / style
+
+- **A. Type hints on public APIs, stdlib typing, no mypy gate yet**
+- B. Full typed + mypy/pyright in step 00
+- C. No type hints (match Ruby’s dynamic style closely)
+
+### Q13 — Python virtualenv (from user notes on Q5)
+
+Where does the environment live, and who creates it?
+
+- **A. One `.venv` at the repo root**, shared by later `python/01_*` … folders. Document creation at the **top** of the Python step README. Users create it from those instructions; launchers and later steps **assume the env is already there**.
+- B. Per-step venv under each `week1_baseline/python/<step>/`
+- C. `uv`-managed env only; no documented venv
+
+---
+
+## Decision log
+
+Recorded from user answers (2026-08-12). Plain-language notes included where
+something needed explanation.
+
+| ID | Decision | Notes |
+|----|----------|-------|
+| Q1 | **A** — Keep package name `boukensha` and same conceptual class names | Easier to follow Ruby videos/docs side by side |
+| Q2 | **A** — `week1_baseline/python/00_config/` snapshot tree | Mirrors `ruby/00_config/` pedagogy |
+| Q3 | **Strings only** for settings keys | YAML in Python yields string keys; document that in the step README |
+| Q4 | **pyproject.toml + python-dotenv + PyYAML** | User chose pyproject + dotenv; PyYAML added because Python has no stdlib YAML (Ruby does). Install with `pip install -e` into the repo-root venv (Q13), not `uv run`. |
+| Q5 | **D** — `week1_baseline/bin/ruby/` and `bin/python/` | User created the subfolders. Relocate Ruby `00_config` into `bin/ruby/` and fix `cd` (one extra `..`). New `bin/python/00_config` for the Python example. |
+| Q6 | **A — parity only** (after explanation) | Do **not** “fix” Ruby’s known rough edges in step 00; match Ruby behaviour |
+| Q7 | **A — no automated tests in 00** | Confirmed: no test suite; the example file is how we smoke-test, same as Ruby |
+| Q8 | **A — share one `.boukensha/` with Ruby** (after explanation) | Python example points at repo-root `.boukensha/` just like Ruby |
+| Q9 | **ValueError** when provider/model missing | Message should still name the task/field, like Ruby |
+| Q10 | **Yes** — one plan file per step under `docs/plans/python_port/` | Next plans: `01_struct_skeleton`, etc. |
+| Q11 | **Python 3.11+** | |
+| Q12 | **Type hints on public APIs** (after explanation); no mypy/pyright gate yet | Optional annotations for readers/tools; not a hard CI requirement |
+| Q13 | **A — one repo-root `.venv`** | Shared across future Python step folders. Setup goes at the top of the Python README. Users create it; we assume it is present. |
+
+### What the unclear questions meant
+
+**stdlib vs third-party (Q4)**  
+stdlib = shipped with Python/Ruby. Third-party = install. Ruby only needed the
+`dotenv` gem because YAML is built in. Python needs **both** `python-dotenv`
+and `PyYAML`. `pyproject.toml` lists those plus the package name; a
+`requirements.txt` would only list packages and would not make `import boukensha`
+work without `PYTHONPATH`.
+
+**Q5 — Launcher**  
+Ruby has a tiny shell script that `cd`s into the step folder and runs the
+example. It currently lives at `week1_baseline/bin/00_config` and does
+`cd "$(dirname "$0")/../ruby/00_config"`.
+
+Decision: **split by language** (not a sibling `00_config_py`, not a dual-mode
+script). Folders already exist:
+
+- `week1_baseline/bin/ruby/00_config` — move the existing script here. The `cd`
+  must gain one extra `..` (`$(dirname "$0")/../../ruby/00_config`).
+- `week1_baseline/bin/python/00_config` — new script that runs
+  `examples/example.py` using the repo-root `.venv` (Q13).
+
+**Q13 — Repo-root venv**  
+One virtualenv at the **repository root** (`.venv/`), not per step. Later
+Python iterations live in other folders; a single env is easier to manage.
+
+Document creation at the **top** of the Python step README (`python3 -m venv
+.venv`, activate, `pip install -e week1_baseline/python/00_config`). Users
+create the env from those instructions. Launchers assume `.venv` is already
+there (invoke `.venv/bin/python`; do not create the env in the bin script).
+
+**Q6 — “Parity only”**  
+Means: Python should behave like Ruby for this step, including Ruby’s known
+limitations (only `settings.yaml` not `.yml`; default prompt is flat
+`prompts/system.md`). We are *not* improving those in 00 unless you ask.
+Decision: **parity only**.
+
+**Q7 — pytest**  
+`pytest` is a common Python test runner (like a mini automated test suite).
+Ruby step 00 does not ship unit tests — only the example. Decision: **no
+test suite in 00**; the example file is how we test.
+
+**Q8 — Share with Ruby**  
+Both languages can read the **same** config folder at the repo root:
+`.boukensha/settings.yaml`, `.boukensha/.env`, `.boukensha/prompts/…`.
+You do not maintain two copies of settings for the camp. Decision: **share**.
+
+**Q12 — Type hints**  
+Optional annotations on function signatures, e.g.
+`def dig(self, *keys: str) -> Any:`, so editors and readers know types.
+Not required to run the code. Decision: add them on public APIs; no strict
+type-checker gate in step 00.
+
+---
+
+## Done when
+
+- [x] Open questions answered and recorded in Decision log
+- [x] Python tree exists with ports of every **Primary** reference file
+- [x] Repo-root `.venv` documented at the top of the Python step README (Q13)
+- [x] Ruby launcher moved to `week1_baseline/bin/ruby/00_config` with fixed `cd`
+- [x] Python launcher at `week1_baseline/bin/python/00_config` (uses `.venv`)
+- [x] Example runs and prints the smoke-test fields against `.boukensha/`
+- [x] Behaviour matches acceptance criteria (parity only — Q6)
+- [x] Step README explains how to create the venv and run the Python version
+
+---
+
+## Quick command reference (after implementation)
+
+```bash
+# One-time: create the shared env (from repo root)
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e week1_baseline/python/00_config
+
+# Ruby reference (source of truth for output shape)
+./week1_baseline/bin/ruby/00_config
+
+# Python smoke test
+./week1_baseline/bin/python/00_config
+```

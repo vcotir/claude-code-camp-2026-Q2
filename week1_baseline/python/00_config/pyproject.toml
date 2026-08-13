@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "boukensha"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = [
+  "python-dotenv",
+  "PyYAML",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["boukensha*"]
